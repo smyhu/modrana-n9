@@ -10,6 +10,9 @@ BasePage {
     bottomPadding : C.style.main.spacingBig * 2
     isFlickable : false
     property variant model
+    // modRana N9: nakladka zaznaczona dlugim przytrzymaniem (-1 = brak),
+    // tylko ja usuwa przycisk remove
+    property int selectedIndex : -1
 
     //property alias model : layersLW.model
 
@@ -43,7 +46,7 @@ BasePage {
                     // this background only covers the delegates,
                     // the last-item buttons have their own
                     height : lGrid.height
-                    active : labelMA.pressed
+                    active : labelMA.pressed || layersPage.selectedIndex == index
                 }
 
 
@@ -77,6 +80,15 @@ BasePage {
                                 // to be set
                                 layerSelectD.layerIndex = index
                                 layerSelectD.open()
+                            }
+                            onPressAndHold : {
+                                if (index == 0) {
+                                    rWin.notify("Mapy bazowej nie można usunąć", 3000)
+                                } else if (layersPage.selectedIndex == index) {
+                                    layersPage.selectedIndex = -1
+                                } else {
+                                    layersPage.selectedIndex = index
+                                }
                             }
                         }
                     }
@@ -128,7 +140,7 @@ BasePage {
                                 console.log("add layer")
                                 console.log(layersLW.height)
                                 console.log(layersLW.contentHeight)
-                                rWin.mapPage.getMap().appendLayer("openptmap_overlay", "OSM Transit Overlay", 1.0)
+                                rWin.mapPage.getMap().appendLayer("wmt_hiking", "Szlaki piesze", 1.0)
                             }
                         }
                     }
@@ -141,16 +153,21 @@ BasePage {
                             id : removeText
                             anchors.verticalCenter : parent.verticalCenter
                             width : parent.width
-                            text : "<b>remove</b>"
+                            text : layersPage.selectedIndex > 0 ? "<b>remove " + layersPage.selectedIndex + "</b>" : "remove"
                             horizontalAlignment : Text.AlignHCenter
                         }
                         MouseArea {
                             id : removeArea
                             anchors.fill : parent
                             onClicked : {
-                                console.log("remove layer")
-                                // remove the last layer
-                                rWin.mapPage.getMap().removeLayer(layersLW.model.count - 1)
+                                // modRana N9: usuwamy tylko zaznaczona nakladke
+                                if (layersPage.selectedIndex > 0) {
+                                    console.log("remove layer " + layersPage.selectedIndex)
+                                    rWin.mapPage.getMap().removeLayer(layersPage.selectedIndex)
+                                    layersPage.selectedIndex = -1
+                                } else {
+                                    rWin.notify("Przytrzymaj nakładkę, aby ją zaznaczyć do usunięcia", 3000)
+                                }
                             }
                         }
                     }

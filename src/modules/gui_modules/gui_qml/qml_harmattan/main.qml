@@ -107,6 +107,12 @@ PageStackWindow {
     }
     */
 
+    // modRana N9: komunikaty z Pythona (bledy pobierania map, wyszukiwania)
+    Connections {
+        target : powiadomienia
+        onZmiana : notify(powiadomienia.tekst, powiadomienia.czas)
+    }
+
     InfoBanner {
         id: notification
         timerShowTime : 5000

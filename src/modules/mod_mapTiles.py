@@ -35,6 +35,7 @@ except ImportError:  # Python 3
 
 from modules import urllib3
 from core import utils
+from core import pomocnik_https
 from core import rectangles
 from core.tilenames import *
 from core.backports import six
@@ -104,6 +105,9 @@ class MapTiles(RanaModule):
         self.idleLoaderActive = False # report the idle tile loader is running
 
         self.shutdownAllThreads = False # notify the threads that shutdown is in progress
+        # modRana N9: ostatnie komunikaty o bledach pobierania (warstwa -> czas)
+        self._bledyWarstw = {}
+        self._bledyLock = threading.Lock()
 
         specialTiles = [
             ('tileDownloading', 'themes/default/tile_downloading.png'),
@@ -190,10 +194,29 @@ class MapTiles(RanaModule):
         tileUrl = self.getTileUrl(x, y, z, layerId)
         # print("GET TILE")
         # print(tileUrl)
-        response = self._getConnPool(layerId, tileUrl).request('GET', tileUrl)
-        # print("RESPONSE")
-        # print(response)
-        tileData = response.data
+        # modRana N9: HTTPS przez pomocnika (Python 2.6 na N9 nie umie
+        # wspolczesnego TLS), HTTP jak dotad przez urllib3
+        try:
+            if tileUrl.startswith("https:"):
+                status, tileData = pomocnik_https.pobierz(tileUrl)
+                if status == 0:
+                    self._zglosBlad(layer, "brak połączenia (%s)" % tileData)
+                    return None
+            else:
+                response = self._getConnPool(layerId, tileUrl).request('GET', tileUrl)
+                status, tileData = response.status, response.data
+        except pomocnik_https.BladPomocnika:
+            e = sys.exc_info()[1]
+            self._zglosBlad(layer, str(e))
+            return None
+        except Exception:
+            e = sys.exc_info()[1]
+            self._zglosBlad(layer, "brak połączenia")
+            raise
+        if status != 200:
+            if status != 404:   # 404 = brak kafelka w tym miejscu (np. nakladki)
+                self._zglosBlad(layer, "serwer odpowiedział błędem HTTP %d" % status)
+            return None
         if tileData:
             # check if the data is actually an image, and not an error page
             if utils.isTheStringAnImage(tileData):
@@ -203,12 +226,32 @@ class MapTiles(RanaModule):
                 #        print("STORED")
                 return tileData
             else:
+                self._zglosBlad(layer, "serwer nie zwrócił obrazka")
                 print("mapTiles: tile data returned by remote tileserver was not an image")
                 print("NOTE: this probably means that the tileserver returned an"
                       "error page in place of the tile, because it doesn't like you")
                 return None
         else:
             return None
+
+    def _zglosBlad(self, layer, opis):
+        """modRana N9: komunikat na ekranie o bledzie pobierania kafelkow,
+        najwyzej raz na minute dla jednej warstwy"""
+        print("mapTiles: %s: %s" % (layer.id, opis))
+        teraz = time.time()
+        with self._bledyLock:
+            if teraz - self._bledyWarstw.get(layer.id, 0) < 60:
+                return
+            self._bledyWarstw[layer.id] = teraz
+        try:
+            nazwa = layer.label
+            if not isinstance(nazwa, six.text_type):
+                nazwa = nazwa.decode("utf-8", "replace")
+            if not isinstance(opis, six.text_type):
+                opis = opis.decode("utf-8", "replace")
+            self.notify(u"Mapa „%s”: %s" % (nazwa, opis), 5000)
+        except Exception:
+            traceback.print_exc()
 
     def _getConnPool(self, layerId, baseUrl):
         """get a connection pool for the given layer

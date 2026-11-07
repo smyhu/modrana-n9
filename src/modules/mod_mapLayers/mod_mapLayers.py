@@ -166,11 +166,12 @@ class MapLayers(RanaModule):
             layerId="mapnik",
             config={
                 'label': "OSM Mapnik",
-                'url': "http://c.tile.openstreetmap.org",
+                'url': "https://tile.openstreetmap.org/${z}/${x}/${y}.png",
                 'max_zoom': 18,
                 'min_zoom': 0,
                 'folder_prefix': "OpenStreetMap I",
-                'coordinates': "osm"
+                'coordinates': "web_mercator_substitution",
+                'type': "png"
             }
         )
 

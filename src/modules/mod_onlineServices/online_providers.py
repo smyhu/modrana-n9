@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Online geodata providers
+import sys
 import time
 import re
 from core import constants
@@ -22,8 +23,35 @@ except ImportError:  # Python 3
     from urllib.parse import urlencode
     from urllib.error import HTTPError, URLError
 
-NOMINATIM_GEOCODING_URL = "http://nominatim.openstreetmap.org/search?"
-NOMINATIM_REVERSE_GEOCODING_URL = "http://nominatim.openstreetmap.org/reverse?"
+NOMINATIM_GEOCODING_URL = "https://nominatim.openstreetmap.org/search?"
+NOMINATIM_REVERSE_GEOCODING_URL = "https://nominatim.openstreetmap.org/reverse?"
+
+
+def _pobierzJson(queryUrl, opis):
+    """modRana N9: Nominatim jest dzis tylko po HTTPS, ktorego Python 2.6
+    na N9 nie obsluzy - pobieramy przez pomocnika HTTPS. Bledy pokazujemy
+    na ekranie."""
+    from core import pomocnik_https
+    from core.singleton import modrana
+    try:
+        status, dane = pomocnik_https.pobierz(queryUrl)
+    except pomocnik_https.BladPomocnika:
+        e = sys.exc_info()[1]
+        tekst = str(e)
+        if isinstance(tekst, bytes) and bytes is str:   # Python 2
+            tekst = tekst.decode("utf-8", "replace")
+        modrana.notify(u"%s: %s" % (opis, tekst), 5000)
+        raise
+    if status != 200:
+        if status == 0:
+            powod = u"brak połączenia"
+        else:
+            powod = u"serwer odpowiedział błędem HTTP %d" % status
+        modrana.notify(u"%s: %s" % (opis, powod), 5000)
+        raise IOError("%s: HTTP %s" % (opis, status))
+    if not isinstance(dane, str):
+        dane = dane.decode("utf-8")
+    return json.loads(dane)
 
 
 #local search result handling
@@ -220,14 +248,15 @@ class GeocodingNominatim(POIProvider):
             params = {
                 'q': term,
                 'format': 'json',
-                'addressdetails': 0
+                'addressdetails': 0,
+                'accept-language': 'pl'
             }
             queryUrl = NOMINATIM_GEOCODING_URL + urlencode(params)
-            reply = urlopen(queryUrl)
-            if reply:
-                # json in Python 3 really needs it encoded like this
-                replyData = reply.read().decode("utf-8")
-                jsonReply = json.loads(replyData)
+            jsonReply = _pobierzJson(queryUrl, u"Wyszukiwanie")
+            if not jsonReply:
+                from core.singleton import modrana
+                modrana.notify(u"Wyszukiwanie: nic nie znaleziono", 4000)
+            if True:
                 for result in jsonReply:
                     # split a prefix from the display name
                     description = result.get("display_name")
@@ -281,11 +310,8 @@ class ReverseGeocodingNominatim(POIProvider):
                 'addressdetails': 0
             }
             queryUrl = NOMINATIM_REVERSE_GEOCODING_URL + urlencode(params)
-            reply = urlopen(queryUrl)
-            if reply:
-                # json in Python 3 really needs it encoded like this
-                replyData = reply.read().decode("utf-8")
-                result = json.loads(replyData)
+            result = _pobierzJson(queryUrl, u"Adres punktu")
+            if result:
                 # split a prefix from the display name
                 description = result.get("display_name")
                 # get the first 2 elements for name

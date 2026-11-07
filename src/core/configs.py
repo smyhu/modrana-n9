@@ -190,4 +190,5 @@ class Configs(object):
         #debugging:
         # return "Mozilla/5.0 (compatible; MSIE 5.5; Linux)"
         #TODO: setting from configuration file, CLI & interface
-        return "modRana flexible GPS navigation system (compatible; Linux)"
+        # modRana N9 (2026): serwery OSM wymagaja identyfikacji programu
+        return "modRana/0.43.4-n9 (Nokia N9; +https://github.com/M4rtinK/modrana)"
