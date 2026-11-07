@@ -35,7 +35,7 @@ except ImportError:  # Python 3
 
 from modules import urllib3
 from core import utils
-from core import pomocnik_https
+from core import https_helper
 from core import rectangles
 from core.tilenames import *
 from core.backports import six
@@ -105,9 +105,9 @@ class MapTiles(RanaModule):
         self.idleLoaderActive = False # report the idle tile loader is running
 
         self.shutdownAllThreads = False # notify the threads that shutdown is in progress
-        # modRana N9: ostatnie komunikaty o bledach pobierania (warstwa -> czas)
-        self._bledyWarstw = {}
-        self._bledyLock = threading.Lock()
+        # modRana N9: last tile download error messages (layer -> time)
+        self._layerErrors = {}
+        self._layerErrorsLock = threading.Lock()
 
         specialTiles = [
             ('tileDownloading', 'themes/default/tile_downloading.png'),
@@ -194,28 +194,28 @@ class MapTiles(RanaModule):
         tileUrl = self.getTileUrl(x, y, z, layerId)
         # print("GET TILE")
         # print(tileUrl)
-        # modRana N9: HTTPS przez pomocnika (Python 2.6 na N9 nie umie
-        # wspolczesnego TLS), HTTP jak dotad przez urllib3
+        # modRana N9: HTTPS through the helper (Python 2.6 on the N9 cannot do
+        # modern TLS), HTTP through urllib3 as before
         try:
             if tileUrl.startswith("https:"):
-                status, tileData = pomocnik_https.pobierz(tileUrl)
+                status, tileData = https_helper.fetch(tileUrl)
                 if status == 0:
-                    self._zglosBlad(layer, "brak połączenia (%s)" % tileData)
+                    self._reportError(layer, "no connection (%s)" % tileData)
                     return None
             else:
                 response = self._getConnPool(layerId, tileUrl).request('GET', tileUrl)
                 status, tileData = response.status, response.data
-        except pomocnik_https.BladPomocnika:
+        except https_helper.HelperError:
             e = sys.exc_info()[1]
-            self._zglosBlad(layer, str(e))
+            self._reportError(layer, str(e))
             return None
         except Exception:
             e = sys.exc_info()[1]
-            self._zglosBlad(layer, "brak połączenia")
+            self._reportError(layer, "no connection")
             raise
         if status != 200:
-            if status != 404:   # 404 = brak kafelka w tym miejscu (np. nakladki)
-                self._zglosBlad(layer, "serwer odpowiedział błędem HTTP %d" % status)
+            if status != 404:   # 404 = no tile at this place (e.g. overlays)
+                self._reportError(layer, "server returned HTTP error %d" % status)
             return None
         if tileData:
             # check if the data is actually an image, and not an error page
@@ -226,7 +226,7 @@ class MapTiles(RanaModule):
                 #        print("STORED")
                 return tileData
             else:
-                self._zglosBlad(layer, "serwer nie zwrócił obrazka")
+                self._reportError(layer, "server did not return an image")
                 print("mapTiles: tile data returned by remote tileserver was not an image")
                 print("NOTE: this probably means that the tileserver returned an"
                       "error page in place of the tile, because it doesn't like you")
@@ -234,22 +234,22 @@ class MapTiles(RanaModule):
         else:
             return None
 
-    def _zglosBlad(self, layer, opis):
-        """modRana N9: komunikat na ekranie o bledzie pobierania kafelkow,
-        najwyzej raz na minute dla jednej warstwy"""
-        print("mapTiles: %s: %s" % (layer.id, opis))
-        teraz = time.time()
-        with self._bledyLock:
-            if teraz - self._bledyWarstw.get(layer.id, 0) < 60:
+    def _reportError(self, layer, description):
+        """modRana N9: on-screen message about a tile download error,
+        at most once a minute for one layer"""
+        print("mapTiles: %s: %s" % (layer.id, description))
+        now = time.time()
+        with self._layerErrorsLock:
+            if now - self._layerErrors.get(layer.id, 0) < 60:
                 return
-            self._bledyWarstw[layer.id] = teraz
+            self._layerErrors[layer.id] = now
         try:
-            nazwa = layer.label
-            if not isinstance(nazwa, six.text_type):
-                nazwa = nazwa.decode("utf-8", "replace")
-            if not isinstance(opis, six.text_type):
-                opis = opis.decode("utf-8", "replace")
-            self.notify(u"Mapa „%s”: %s" % (nazwa, opis), 5000)
+            name = layer.label
+            if not isinstance(name, six.text_type):
+                name = name.decode("utf-8", "replace")
+            if not isinstance(description, six.text_type):
+                description = description.decode("utf-8", "replace")
+            self.notify(u"Map \"%s\": %s" % (name, description), 5000)
         except Exception:
             traceback.print_exc()
 

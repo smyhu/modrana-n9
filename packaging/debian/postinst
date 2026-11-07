@@ -1,0 +1,11 @@
+#!/bin/sh
+
+echo "removing old *.pyc files"
+rm `find /opt/modrana -name '*.pyc'`
+
+echo "generating *.pyc files"
+# generate *.pyc files to speed up startup
+# also, after changing the permissions user ran python can't create them
+python -m compileall -f /opt/modrana
+
+exit 0

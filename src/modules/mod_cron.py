@@ -170,14 +170,14 @@ class CronQt(Cron):
         # cronTab and activeIds should be in sync
         self.cronTab = {"idle": {}, "timeout": {}}
         self.dataLock = threading.RLock()
-        # modRana N9: addIdle bylo puste, przez co np. komunikaty na ekranie
-        # nigdy sie nie pokazywaly. Kolejka wywolan opróżniana przez QTimer
-        # w watku GUI (wolno ja zapelniac z dowolnego watku).
+        # modRana N9: addIdle was empty, so e.g. on-screen messages were never
+        # shown. A call queue emptied by a QTimer in the GUI thread
+        # (it may be filled from any thread).
         self._idleQueue = []
         self._idleTimer = None
 
     def firstTime(self):
-        # QApplication juz istnieje (modul GUI), jestesmy w glownym watku
+        # QApplication already exists (GUI module), we are in the main thread
         try:
             self._idleTimer = QtCore.QTimer()
             self._idleTimer.timeout.connect(lambda: self._runIdle())
@@ -188,8 +188,8 @@ class CronQt(Cron):
 
     def _runIdle(self):
         with self.dataLock:
-            kolejka, self._idleQueue = self._idleQueue, []
-        for callback, args in kolejka:
+            queue, self._idleQueue = self._idleQueue, []
+        for callback, args in queue:
             try:
                 callback(*args)
             except Exception:

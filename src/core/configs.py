@@ -190,5 +190,5 @@ class Configs(object):
         #debugging:
         # return "Mozilla/5.0 (compatible; MSIE 5.5; Linux)"
         #TODO: setting from configuration file, CLI & interface
-        # modRana N9 (2026): serwery OSM wymagaja identyfikacji programu
+        # modRana N9 (2026): OSM servers require the program to identify itself
         return "modRana/0.43.4-n9 (Nokia N9; +https://github.com/M4rtinK/modrana)"

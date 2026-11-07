@@ -27,31 +27,31 @@ NOMINATIM_GEOCODING_URL = "https://nominatim.openstreetmap.org/search?"
 NOMINATIM_REVERSE_GEOCODING_URL = "https://nominatim.openstreetmap.org/reverse?"
 
 
-def _pobierzJson(queryUrl, opis):
-    """modRana N9: Nominatim jest dzis tylko po HTTPS, ktorego Python 2.6
-    na N9 nie obsluzy - pobieramy przez pomocnika HTTPS. Bledy pokazujemy
-    na ekranie."""
-    from core import pomocnik_https
+def _fetchJson(queryUrl, what):
+    """modRana N9: Nominatim is HTTPS-only today, which Python 2.6 on the N9
+    cannot handle - fetch through the HTTPS helper. Errors are shown
+    on screen."""
+    from core import https_helper
     from core.singleton import modrana
     try:
-        status, dane = pomocnik_https.pobierz(queryUrl)
-    except pomocnik_https.BladPomocnika:
+        status, data = https_helper.fetch(queryUrl)
+    except https_helper.HelperError:
         e = sys.exc_info()[1]
-        tekst = str(e)
-        if isinstance(tekst, bytes) and bytes is str:   # Python 2
-            tekst = tekst.decode("utf-8", "replace")
-        modrana.notify(u"%s: %s" % (opis, tekst), 5000)
+        text = str(e)
+        if isinstance(text, bytes) and bytes is str:   # Python 2
+            text = text.decode("utf-8", "replace")
+        modrana.notify(u"%s: %s" % (what, text), 5000)
         raise
     if status != 200:
         if status == 0:
-            powod = u"brak połączenia"
+            reason = u"no connection"
         else:
-            powod = u"serwer odpowiedział błędem HTTP %d" % status
-        modrana.notify(u"%s: %s" % (opis, powod), 5000)
-        raise IOError("%s: HTTP %s" % (opis, status))
-    if not isinstance(dane, str):
-        dane = dane.decode("utf-8")
-    return json.loads(dane)
+            reason = u"server returned HTTP error %d" % status
+        modrana.notify(u"%s: %s" % (what, reason), 5000)
+        raise IOError("%s: HTTP %s" % (what, status))
+    if not isinstance(data, str):
+        data = data.decode("utf-8")
+    return json.loads(data)
 
 
 #local search result handling
@@ -252,10 +252,10 @@ class GeocodingNominatim(POIProvider):
                 'accept-language': 'pl'
             }
             queryUrl = NOMINATIM_GEOCODING_URL + urlencode(params)
-            jsonReply = _pobierzJson(queryUrl, u"Wyszukiwanie")
+            jsonReply = _fetchJson(queryUrl, u"Search")
             if not jsonReply:
                 from core.singleton import modrana
-                modrana.notify(u"Wyszukiwanie: nic nie znaleziono", 4000)
+                modrana.notify(u"Search: nothing found", 4000)
             if True:
                 for result in jsonReply:
                     # split a prefix from the display name
@@ -310,7 +310,7 @@ class ReverseGeocodingNominatim(POIProvider):
                 'addressdetails': 0
             }
             queryUrl = NOMINATIM_REVERSE_GEOCODING_URL + urlencode(params)
-            result = _pobierzJson(queryUrl, u"Adres punktu")
+            result = _fetchJson(queryUrl, u"Point address")
             if result:
                 # split a prefix from the display name
                 description = result.get("display_name")

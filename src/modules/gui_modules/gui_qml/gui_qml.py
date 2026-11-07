@@ -188,9 +188,9 @@ class QMLGUI(GUIModule):
         # make search accessible from QML
         search = Search(self)
         rc.setContextProperty("search", search)
-        # modRana N9: komunikaty na ekranie (InfoBanner w main.qml)
-        self._powiadomienia = Powiadomienia()
-        rc.setContextProperty("powiadomienia", self._powiadomienia)
+        # modRana N9: on-screen messages (InfoBanner in main.qml)
+        self._notifications = Notifications()
+        rc.setContextProperty("notifications", self._notifications)
 
         # make constants accessible
         self.constants = self.getConstants()
@@ -317,16 +317,16 @@ class QMLGUI(GUIModule):
         """trigger a notification using the Qt Quick Components
         InfoBanner notification"""
 
-        # modRana N9: komunikaty wlaczone (InfoBanner z qml_harmattan/main.qml).
-        # Wolane w watku GUI (mod_notification -> cron.addIdle).
-        # mod_notification podaje czas w sekundach, reszta w ms
+        # modRana N9: messages enabled (InfoBanner from qml_harmattan/main.qml).
+        # Called in the GUI thread (mod_notification -> cron.addIdle).
+        # mod_notification gives the time in seconds, the rest in ms
         if msTimeout is None:
             msTimeout = 5000
         elif msTimeout < 100:
             msTimeout = int(msTimeout * 1000)
         if not msTimeout:
             msTimeout = 5000
-        self._powiadomienia.pokaz(newlines2brs(text), int(msTimeout))
+        self._notifications.show(newlines2brs(text), int(msTimeout))
 
     def openUrl(self, url):
         QDesktopServices.openUrl(url)
@@ -758,24 +758,24 @@ class MapLayers(QtCore.QObject):
         else:
             return "label for %s unknown" % layerId
 
-class Powiadomienia(QtCore.QObject):
-    """modRana N9: tekst komunikatu dla QML; main.qml na sygnal zmiana
-    pokazuje InfoBanner"""
+class Notifications(QtCore.QObject):
+    """modRana N9: message text for QML; main.qml shows an InfoBanner
+    on the changed signal"""
 
     def __init__(self):
         QtCore.QObject.__init__(self)
-        self._tekst = ""
-        self._czas = 5000
+        self._text = ""
+        self._timeout = 5000
 
-    zmiana = QtCore.Signal()
+    changed = QtCore.Signal()
 
-    def pokaz(self, tekst, czas):
-        self._tekst = tekst
-        self._czas = czas
-        self.zmiana.emit()
+    def show(self, text, timeout):
+        self._text = text
+        self._timeout = timeout
+        self.changed.emit()
 
-    tekst = QtCore.Property(str, lambda x: x._tekst, notify=zmiana)
-    czas = QtCore.Property(int, lambda x: x._czas, notify=zmiana)
+    text = QtCore.Property(str, lambda x: x._text, notify=changed)
+    timeout = QtCore.Property(int, lambda x: x._timeout, notify=changed)
 
 
 class Search(QtCore.QObject):

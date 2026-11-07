@@ -10,8 +10,8 @@ BasePage {
     bottomPadding : C.style.main.spacingBig * 2
     isFlickable : false
     property variant model
-    // modRana N9: nakladka zaznaczona dlugim przytrzymaniem (-1 = brak),
-    // tylko ja usuwa przycisk remove
+    // modRana N9: overlay selected by long-press (-1 = none),
+    // only that one is removed by the remove button
     property int selectedIndex : -1
 
     //property alias model : layersLW.model
@@ -83,7 +83,7 @@ BasePage {
                             }
                             onPressAndHold : {
                                 if (index == 0) {
-                                    rWin.notify("Mapy bazowej nie można usunąć", 3000)
+                                    rWin.notify("The base map cannot be removed", 3000)
                                 } else if (layersPage.selectedIndex == index) {
                                     layersPage.selectedIndex = -1
                                 } else {
@@ -140,7 +140,7 @@ BasePage {
                                 console.log("add layer")
                                 console.log(layersLW.height)
                                 console.log(layersLW.contentHeight)
-                                rWin.mapPage.getMap().appendLayer("wmt_hiking", "Szlaki piesze", 1.0)
+                                rWin.mapPage.getMap().appendLayer("wmt_hiking", "Hiking trails", 1.0)
                             }
                         }
                     }
@@ -160,13 +160,13 @@ BasePage {
                             id : removeArea
                             anchors.fill : parent
                             onClicked : {
-                                // modRana N9: usuwamy tylko zaznaczona nakladke
+                                // modRana N9: remove only the selected overlay
                                 if (layersPage.selectedIndex > 0) {
                                     console.log("remove layer " + layersPage.selectedIndex)
                                     rWin.mapPage.getMap().removeLayer(layersPage.selectedIndex)
                                     layersPage.selectedIndex = -1
                                 } else {
-                                    rWin.notify("Przytrzymaj nakładkę, aby ją zaznaczyć do usunięcia", 3000)
+                                    rWin.notify("Press and hold an overlay to select it for removal", 3000)
                                 }
                             }
                         }

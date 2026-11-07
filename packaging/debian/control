@@ -1,0 +1,21 @@
+Package: modrana
+Version: @VERSION@
+Architecture: armel
+Maintainer: smyhu <smyhu@users.noreply.github.com>
+Installed-Size: @SIZE@
+Depends: python-pyside.qtgui, python-pyside.qtdeclarative, python-qtmobility, libqt4-network
+Section: user/navigation
+Priority: optional
+Description: modRana 0.43.4 revived for Nokia N9
+ modRana by Martin Kolman (GPL-3) with a 2026 list of working maps and
+ overlays (terrain, hiking/cycling trails, satellite), address search via
+ Nominatim over HTTPS and on-screen error messages.
+ Needs a TLS 1.2 patch (github.com/smyhu/n9-tls) for HTTPS maps and search.
+Aegis-Manifest: included
+Bugtracker: https://github.com/smyhu/modrana-n9/issues
+Maemo-Display-Name: modRana
+Maemo-Flags: visible
+Maemo-Icon-26: 
+@ICON@
+Maemo-Upgrade-Description: modRana N9 @VERSION@ (2026)
+Meego-Desktop-Entry-Filename: modrana

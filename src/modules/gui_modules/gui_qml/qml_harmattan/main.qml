@@ -107,10 +107,10 @@ PageStackWindow {
     }
     */
 
-    // modRana N9: komunikaty z Pythona (bledy pobierania map, wyszukiwania)
+    // modRana N9: messages from Python (map download and search errors)
     Connections {
-        target : powiadomienia
-        onZmiana : notify(powiadomienia.tekst, powiadomienia.czas)
+        target : notifications
+        onChanged : notify(notifications.text, notifications.timeout)
     }
 
     InfoBanner {
